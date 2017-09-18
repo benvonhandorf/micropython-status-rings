@@ -1,0 +1,3 @@
+[submodule "micropython-ws2812ring"]
+	path = micropython-ws2812ring
+	url = git@github.com:benvonhandorf/micropython-ws2812ring.git
