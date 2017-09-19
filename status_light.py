@@ -2,28 +2,69 @@ import machine, neopixel, ws2812ring, utime
 from machine import Timer
 import time
 from umqtt.robust import MQTTClient
+import json
+import ubinascii
+import sys
 
 global x
 
+class RingState:
+  def __init__(self, ring):
+    self.ring = ring
+    self.animation = None
+    self.timer = 0
+    self.frame = 0
+    self.last_time = time.ticks_ms()
+
+    self.ring.fill((0, 0, 0))
+
+  def update(self):
+    if self.animation is None:
+      return
+
+    frame_data = ubinascii.a2b_base64(self.animation[self.frame].get("f", None))
+
+    if frame_data is None or len(frame_data) == 0:
+      return
+
+    if time.ticks_ms() - self.last_time < self.timer:
+      return
+
+    for position in range(0, self.ring.count):
+      if position < len(frame_data):
+        color = (frame_data[position * 3], frame_data[(position * 3) + 1], frame_data[(position * 3) + 2])
+        self.ring.set(position, color)
+
+    neopixel_strand.write()
+
+    self.timer = self.animation[self.frame].get("d", 50) #Delay before next frame in ms
+    self.frame = self.frame + 1
+
+    if self.frame >= len(self.animation):
+      self.frame = 0
+
+  def set_animation(self,animation_name):
+    filename = animation_name + ".json.compressed"
+
+    print("Retrieving animation {0}".format(filename))
+
+    try:
+      with open(filename) as animation_file:
+        self.animation = json.load(animation_file)
+        self.frame = 0
+        self.timer = 0
+
+        print("Animation loaded with {0} frames", len(self.animation))
+    except Exception as e:
+      print("Unable to open animation for {0}".format(animation_name))
+      sys.print_exception(e)
+      self.animation = None
+
+
+
 def timerCallback(timer):
-	if x == 6000:
-		x = 0
-
-	inner_ring.rotateCCW()
-
-	if x % 2 == 0:
-		middle_ring.rotateCW()
-
-	if x % 3 == 0:
-		outer_ring.rotateCCW()
-
-	neopixel_strand.write()
-
-	x = x + 1
-
-# readingTimer = Timer(-1)
-
-# readingTimer.init(period=100, mode=Timer.PERIODIC, callback=timerCallback)
+  for ring in rings:
+    ring.update()
 
 def setup(server):
   global neopixel_strand
@@ -34,22 +75,18 @@ def setup(server):
   global rings
 
   neopixel_strand = neopixel.NeoPixel(machine.Pin(4), 44)
-  outer_ring = ws2812ring.Ring(neopixel_strand, 0, 24)
-  middle_ring = ws2812ring.Ring(neopixel_strand, 24, 12)
-  inner_ring = ws2812ring.Ring(neopixel_strand, 36, 8)
+  outer_ring = RingState(ws2812ring.Ring(neopixel_strand, 0, 24))
+  middle_ring = RingState(ws2812ring.Ring(neopixel_strand, 24, 12))
+  inner_ring = RingState(ws2812ring.Ring(neopixel_strand, 36, 8))
 
   rings = [inner_ring, middle_ring, outer_ring]
-
-  outer_ring.fill((0, 0, 0))
-  middle_ring.fill((0, 0, 0))
-  inner_ring.fill((0, 0, 0))
 
   neopixel_strand.write()
 
   global mqtt_client
 
   mqtt_client = MQTTClient("status_light", server, user="status_light", password="9o6J5tiF10Mm")
-  mqtt_client.set_callback(sub_cb)
+  mqtt_client.set_callback(topic_update)
   mqtt_client.set_last_will(b"/status/indicator/0/connected", b"0")
   mqtt_client.connect()
   mqtt_client.subscribe(b"/status/indicator/0/0")
@@ -57,7 +94,12 @@ def setup(server):
   mqtt_client.subscribe(b"/status/indicator/0/2")
   mqtt_client.publish(b"/status/indicator/0/connected", b"1")
 
-def sub_cb(topic, msg):
+  readingTimer = Timer(-1)
+
+  readingTimer.init(period=100, mode=Timer.PERIODIC, callback=timerCallback)
+
+
+def topic_update(topic, msg):
   print((topic, msg))
   
   topic = bytes.decode(topic)
@@ -67,12 +109,7 @@ def sub_cb(topic, msg):
 
   ring = rings[ring_index]
 
-  if msg.find("red") != -1:
-    ring.fill((255, 0, 0))
-  elif msg.find("green") != -1:
-    ring.fill((0, 255, 0))
-  else:
-    ring.fill((0, 0, 0))
+  ring.set_animation(msg)
 
   neopixel_strand.write()
 
