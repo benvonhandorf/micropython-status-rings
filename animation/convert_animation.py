@@ -24,15 +24,10 @@ def color_from_node(node, base_color = None):
 
   return color
 
-def convert(filename):
-  with open(filename) as uncompressed_file:
-    uncompressed_json = json.load(uncompressed_file)
+def buildFileForLeds(led_count, uncompressed_json, base_filename):
+  compressed_frames = []
 
-    compressed_frames = []
-
-    led_count = uncompressed_json["leds"]
-
-    for frame in uncompressed_json["frames"]:
+  for frame in uncompressed_json["frames"]:
       base_color = color_from_node(frame)
       uncompressed_cells = frame.get("cells", [])
       frame_data = bytearray()
@@ -53,20 +48,47 @@ def convert(filename):
 
       encoded_data = base64.b64encode(frame_data).decode()
 
-      print("{0} bytes in frame data - {1}".format(len(frame_data), encoded_data))
+      # print("{0} bytes in frame data - {1}".format(len(frame_data), encoded_data))
 
       compressed_frame = {"f": encoded_data}
 
-      print(compressed_frame)
-
       compressed_frames.append(compressed_frame)
 
-    print(compressed_frames)
+  marker_location = base_filename.find("#")
 
-    with open(filename + ".compressed", "w") as compressed_file:
-      compressed_file.write(json.dumps(compressed_frames))
-      print("{0} frames convered for {1} leds".format(len(compressed_frames), led_count) )
+  if marker_location == -1:
+    marker_location = 0
+  else:
+    marker_location = marker_location + 1 #Remove the trailing hash
 
+  output_filename = "{0}-{1}.c".format(led_count, base_filename[marker_location:])
+
+  with open(output_filename, "w") as compressed_file:
+    compressed_file.write(json.dumps(compressed_frames))
+    print("{0} - {1} frames convered for {2} leds".format(output_filename, len(compressed_frames), led_count) )
+
+supported_led_counts = [8, 12, 16, 24]
+
+def convert(filename):
+  with open(filename) as uncompressed_file:
+    uncompressed_json = json.load(uncompressed_file)
+
+    led_counts = []
+
+    exact_led_count = uncompressed_json.get("leds")
+
+    if exact_led_count is not None:
+      led_counts.append(exact_led_count)
+    else:
+      led_minimum = uncompressed_json.get("ledMin", 8)
+      led_maximum = uncompressed_json.get("ledMax", 24)
+
+      led_counts = [x for x in supported_led_counts if x >= led_minimum and x <= led_maximum]
+
+    print("Generating patterns for leds: {0}".format(led_counts))
+
+    for led_count in led_counts:
+      buildFileForLeds(led_count, uncompressed_json, filename)
 
 if len(sys.argv) != 2:
   print(sys.argv)

@@ -43,24 +43,34 @@ class RingState:
     if self.frame >= len(self.animation):
       self.frame = 0
 
-  def set_animation(self,animation_name):
-    filename = animation_name + ".json.compressed"
-
-    print("Retrieving animation {0}".format(filename))
-
+  def get_animation_from_file(self, filename):
     try:
       with open(filename) as animation_file:
-        self.animation = json.load(animation_file)
-        self.frame = 0
-        self.timer = 0
-
-        print("Animation loaded with {0} frames", len(self.animation))
+        return json.load(animation_file)
+        
     except Exception as e:
-      print("Unable to open animation for {0}".format(animation_name))
-      sys.print_exception(e)
+      return None
+
+  def set_animation(self,animation_name):
+    filename = "{0}-{1}.json.c".format(self.ring.count, animation_name)
+
+    animation = self.get_animation_from_file(filename)
+
+    if animation is None:
+      #Look for a general purpose animation, no LED number
+      filename = "{1}.json.c".format(self.ring.count, animation_name)
+
+      animation = self.get_animation_from_file(filename)
+
+    if animation is None:
+      print("Unable to find animation for {0}".format(animation_name))
       self.animation = None
+    else:
+      self.animation = animation
+      self.frame = 0
+      self.timer = 0
 
-
+      print("Animation loaded from {0} with {1} frames".format(filename, len(self.animation)))
 
 def timerCallback(timer):
   for ring in rings:
