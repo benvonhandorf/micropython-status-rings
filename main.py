@@ -1,20 +1,23 @@
 import configurator
 import status_light
+import machine
+import time
 
 configurator = configurator.Configurator()
-statusLight = status_light.StatusLight()
+statusLight = status_light.StatusLight(configurator["segments"])
 
 def main():
   statusLight.initializing(0)
 
   print("Configuring...")
-  configurator.configure()
-  print("Configuration complete: {0} {1}".format(configurator.wlan.isconnected(), configurator.wlan.status()))
-
-  while not configurator.wlan.isconnected():
+  
+  while not configurator.configureNetwork():
+    machine.idle()
+    time.sleep(1)
+    machine.idle()
     print("Configuring...")
-    configurator.configure()
-    print("Configuration complete: {0} {1}".format(configurator.wlan.isconnected(), configurator.wlan.status()))
+
+  print("Configuration complete: {0} {1}".format(configurator.wlan.isconnected(), configurator.wlan.status()))
 
   statusLight.initializing(3)
 

@@ -71,13 +71,26 @@ class RingState:
       print("Animation loaded from {0} with {1} frames".format(filename, len(self.animation)))
 
 class StatusLight:
-  def __init__(self):
-    self.neopixel_strand = neopixel_strand = neopixel.NeoPixel(machine.Pin(4), 44)
-    self.outer_ring = RingState(ws2812ring.Ring(neopixel_strand, 0, 24))
-    self.middle_ring = RingState(ws2812ring.Ring(neopixel_strand, 24, 12))
-    self.inner_ring = RingState(ws2812ring.Ring(neopixel_strand, 36, 8))
+  def __init__(self, segmentDescriptors):
 
-    self.rings = [self.inner_ring, self.middle_ring, self.outer_ring]
+    self.rings = []
+
+    totalPixels = 0
+
+    for segmentCount in segmentDescriptors:
+      totalPixels = totalPixels + segmentCount
+
+    print("Configuring {0} total pixels".format(totalPixels))
+
+    self.neopixel_strand = neopixel.NeoPixel(machine.Pin(4), totalPixels)
+
+    currentOffset = 0
+
+    for segmentCount in segmentDescriptors:
+      print("Configuring ring from {} with {} pixels".format(currentOffset, segmentCount))
+      ring = RingState(ws2812ring.Ring(self.neopixel_strand, currentOffset, segmentCount))
+      currentOffset = currentOffset + segmentCount
+      self.rings.append(ring)
 
     self.neopixel_strand.write()
 

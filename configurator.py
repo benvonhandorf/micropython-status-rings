@@ -2,7 +2,11 @@ import json
 import network
 
 class Configurator:
-  def configure(self):
+  def __init__(self):
+    with open("config.json") as cfgFile:
+      self.config = json.load(cfgFile)
+
+  def configureNetwork(self):
     if hasattr(self, "wlan") and self.wlan is not None and self.wlan.isconnected():
       return
 
@@ -12,10 +16,9 @@ class Configurator:
     self.wlan.active(True)       # activate the interface
     availableNetworks = self.wlan.scan()             # scan for access points
 
-    with open("config.json") as cfgFile:
-      self.config = json.load(cfgFile)
-
     if self.config["networks"] is not None:
+
+      print("Available networks {0}".format(availableNetworks))
       for availNetwork in availableNetworks:
         if self.wlan.isconnected():
           for configuredNetwork in self.config["networks"]:
@@ -23,6 +26,10 @@ class Configurator:
               print("Attempting connection to network {0}".format(configuredNetwork["ssid"]))
               self.wlan.connect(configuredNetwork["ssid"], configuredNetwork["psk"])
               break
+    else:
+      print("No networks are configured")
+
+    return self.wlan.isconnected()
 
   def __getitem__(self, key):
     return self.config[key]
