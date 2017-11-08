@@ -35,8 +35,6 @@ class RingState:
         color = (frame_data[position * 3], frame_data[(position * 3) + 1], frame_data[(position * 3) + 2])
         self.ring.set(position, color)
 
-    neopixel_strand.write()
-
     self.timer = self.animation[self.frame].get("d", 50) #Delay before next frame in ms
     self.frame = self.frame + 1
 
@@ -72,73 +70,84 @@ class RingState:
 
       print("Animation loaded from {0} with {1} frames".format(filename, len(self.animation)))
 
-def timerCallback(timer):
-  for ring in rings:
-    ring.update()
+class StatusLight:
+  def __init__(self):
+    self.neopixel_strand = neopixel_strand = neopixel.NeoPixel(machine.Pin(4), 44)
+    self.outer_ring = RingState(ws2812ring.Ring(neopixel_strand, 0, 24))
+    self.middle_ring = RingState(ws2812ring.Ring(neopixel_strand, 24, 12))
+    self.inner_ring = RingState(ws2812ring.Ring(neopixel_strand, 36, 8))
 
-def setup(server):
-  global neopixel_strand
-  global outer_ring
-  global middle_ring
-  global inner_ring
+    self.rings = [self.inner_ring, self.middle_ring, self.outer_ring]
 
-  global rings
+    self.neopixel_strand.write()
 
-  neopixel_strand = neopixel.NeoPixel(machine.Pin(4), 44)
-  outer_ring = RingState(ws2812ring.Ring(neopixel_strand, 0, 24))
-  middle_ring = RingState(ws2812ring.Ring(neopixel_strand, 24, 12))
-  inner_ring = RingState(ws2812ring.Ring(neopixel_strand, 36, 8))
+    self.readingTimer = Timer(-1)
 
-  rings = [inner_ring, middle_ring, outer_ring]
+    self.readingTimer.init(period=100, mode=Timer.PERIODIC, callback=self.timerCallback)
 
-  neopixel_strand.write()
+  def stop(self):
+    self.readingTimer.deinit()
 
-  global mqtt_client
+  def initializing(self, initState):
+    ring = self.rings[initState % 3]
 
-  mqtt_client = MQTTClient("status_light", server, user="status_light", password="9o6J5tiF10Mm")
-  mqtt_client.set_callback(topic_update)
-  mqtt_client.set_last_will(b"/status/indicator/0/connected", b"0")
-  mqtt_client.connect()
-  mqtt_client.subscribe(b"/status/indicator/0/0")
-  mqtt_client.subscribe(b"/status/indicator/0/1")
-  mqtt_client.subscribe(b"/status/indicator/0/2")
-  mqtt_client.publish(b"/status/indicator/0/connected", b"1")
+    if initState < 3:
+      ring.set_animation("red-pulse")
+    else:
+      ring.set_animation("green-pulse")
 
-  readingTimer = Timer(-1)
+    self.neopixel_strand.write()
 
-  readingTimer.init(period=100, mode=Timer.PERIODIC, callback=timerCallback)
+  def timerCallback(self, timer):
+    for ring in self.rings:
+      ring.update()
+
+    self.neopixel_strand.write()
+
+  def setup(self, server, topic):
+    self.baseTopic = topic
+
+    self.mqtt_client = MQTTClient("status_light", server, user="status_light", password="9o6J5tiF10Mm")
+    self.mqtt_client.set_callback(self.topic_update)
+    print("Last will topic: " "{0}/connected".format(self.baseTopic))
+    self.mqtt_client.set_last_will(bytes("{0}/connected".format(self.baseTopic), 'utf-8'), b"0")
+    self.mqtt_client.connect()
+    self.mqtt_client.subscribe(bytes("{0}/0".format(self.baseTopic), 'utf-8'))
+    self.mqtt_client.subscribe(bytes("{0}/1".format(self.baseTopic), 'utf-8'))
+    self.mqtt_client.subscribe(bytes("{0}/2".format(self.baseTopic), 'utf-8'))
+    self.mqtt_client.publish(bytes("{0}/connected".format(self.baseTopic), 'utf-8'), b"1")
 
 
-def topic_update(topic, msg):
-  print((topic, msg))
-  
-  topic = bytes.decode(topic)
-  msg = bytes.decode(msg)
+  def topic_update(self, topic, msg):
+    print((topic, msg))
+    
+    topic = bytes.decode(topic)
+    msg = bytes.decode(msg)
 
-  ring_index = int(topic.split("/")[-1])
+    ring_index = int(topic.split("/")[-1])
 
-  ring = rings[ring_index]
+    ring = self.rings[ring_index]
 
-  ring.set_animation(msg)
+    ring.set_animation(msg)
 
-  neopixel_strand.write()
+    self.neopixel_strand.write()
 
-def main():
+  def main(self):
 
-  while True:
-      if True:
-        print("waiting for message")
+    while True:
+        if True:
+          print("waiting for message")
 
-        # Blocking wait for message
-        mqtt_client.wait_msg()  
-      else:
-        # Non-blocking wait for message
-        mqtt_client.check_msg()
-        # Then need to sleep to avoid 100% CPU usage (in a real
-        # app other useful actions would be performed instead)
-        time.sleep(1)
+          # Blocking wait for message
+          self.mqtt_client.wait_msg()  
+        else:
+          # Non-blocking wait for message
+          self.mqtt_client.check_msg()
+          # Then need to sleep to avoid 100% CPU usage (in a real
+          # app other useful actions would be performed instead)
+          time.sleep(1)
 
-  mqtt_client.disconnect()
+    self.mqtt_client.disconnect()
 
 if __name__ == "__main__":
   setup("192.168.10.105")
