@@ -20,7 +20,7 @@ class Configurator:
 
       print("Available networks {0}".format(availableNetworks))
       for availNetwork in availableNetworks:
-        if self.wlan.isconnected():
+        if not self.wlan.isconnected():
           for configuredNetwork in self.config["networks"]:
             if not self.wlan.isconnected() and configuredNetwork["ssid"].lower() == availNetwork[0].decode("utf-8").lower:
               print("Attempting connection to network {0}".format(configuredNetwork["ssid"]))
