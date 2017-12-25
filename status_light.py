@@ -6,8 +6,6 @@ import json
 import ubinascii
 import sys
 
-global x
-
 class RingState:
   def __init__(self, ring):
     self.ring = ring
@@ -102,7 +100,7 @@ class StatusLight:
     self.readingTimer.deinit()
 
   def initializing(self, initState):
-    ring = self.rings[initState % 3]
+    ring = self.rings[initState % self.rings.length]
 
     if initState < 3:
       ring.set_animation("red-pulse")
