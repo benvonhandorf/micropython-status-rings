@@ -2,96 +2,163 @@ import machine, neopixel, ws2812ring, utime
 from machine import Timer
 import time
 from umqtt.robust import MQTTClient
+import json
+import ubinascii
+import sys
 
-global x
+class RingState:
+  def __init__(self, ring):
+    self.ring = ring
+    self.animation = None
+    self.timer = 0
+    self.frame = 0
+    self.last_time = time.ticks_ms()
 
-def timerCallback(timer):
-	if x == 6000:
-		x = 0
+    self.ring.fill((0, 0, 0))
 
-	inner_ring.rotateCCW()
+  def update(self):
+    if self.animation is None:
+      return
 
-	if x % 2 == 0:
-		middle_ring.rotateCW()
+    frame_data = ubinascii.a2b_base64(self.animation[self.frame].get("f", None))
 
-	if x % 3 == 0:
-		outer_ring.rotateCCW()
+    if frame_data is None or len(frame_data) == 0:
+      return
 
-	neopixel_strand.write()
+    if time.ticks_ms() - self.last_time < self.timer:
+      return
 
-	x = x + 1
+    for position in range(0, self.ring.count):
+      if position < len(frame_data):
+        color = (frame_data[position * 3], frame_data[(position * 3) + 1], frame_data[(position * 3) + 2])
+        self.ring.set(position, color)
 
-# readingTimer = Timer(-1)
+    self.timer = self.animation[self.frame].get("d", 50) #Delay before next frame in ms
+    self.frame = self.frame + 1
 
-# readingTimer.init(period=100, mode=Timer.PERIODIC, callback=timerCallback)
+    if self.frame >= len(self.animation):
+      self.frame = 0
 
-def setup(server):
-  global neopixel_strand
-  global outer_ring
-  global middle_ring
-  global inner_ring
+  def get_animation_from_file(self, filename):
+    try:
+      with open(filename) as animation_file:
+        return json.load(animation_file)
+        
+    except Exception as e:
+      return None
 
-  global rings
+  def set_animation(self,animation_name):
+    filename = "{0}-{1}.json.c".format(self.ring.count, animation_name)
 
-  neopixel_strand = neopixel.NeoPixel(machine.Pin(4), 44)
-  outer_ring = ws2812ring.Ring(neopixel_strand, 0, 24)
-  middle_ring = ws2812ring.Ring(neopixel_strand, 24, 12)
-  inner_ring = ws2812ring.Ring(neopixel_strand, 36, 8)
+    animation = self.get_animation_from_file(filename)
 
-  rings = [inner_ring, middle_ring, outer_ring]
+    if animation is None:
+      #Look for a general purpose animation, no LED number
+      filename = "{1}.json.c".format(self.ring.count, animation_name)
 
-  outer_ring.fill((0, 0, 0))
-  middle_ring.fill((0, 0, 0))
-  inner_ring.fill((0, 0, 0))
+      animation = self.get_animation_from_file(filename)
 
-  neopixel_strand.write()
+    if animation is None:
+      print("Unable to find animation for {0}".format(animation_name))
+      self.animation = None
+    else:
+      self.animation = animation
+      self.frame = 0
+      self.timer = 0
 
-  global mqtt_client
+      print("Animation loaded from {0} with {1} frames".format(filename, len(self.animation)))
 
-  mqtt_client = MQTTClient("status_light", server, user="status_light", password="9o6J5tiF10Mm")
-  mqtt_client.set_callback(sub_cb)
-  mqtt_client.set_last_will(b"/status/indicator/0/connected", b"0")
-  mqtt_client.connect()
-  mqtt_client.subscribe(b"/status/indicator/0/0")
-  mqtt_client.subscribe(b"/status/indicator/0/1")
-  mqtt_client.subscribe(b"/status/indicator/0/2")
-  mqtt_client.publish(b"/status/indicator/0/connected", b"1")
+class StatusLight:
+  def __init__(self, segmentDescriptors):
 
-def sub_cb(topic, msg):
-  print((topic, msg))
-  
-  topic = bytes.decode(topic)
-  msg = bytes.decode(msg)
+    self.rings = []
 
-  ring_index = int(topic.split("/")[-1])
+    totalPixels = 0
 
-  ring = rings[ring_index]
+    for segmentCount in segmentDescriptors:
+      totalPixels = totalPixels + segmentCount
 
-  if msg.find("red") != -1:
-    ring.fill((255, 0, 0))
-  elif msg.find("green") != -1:
-    ring.fill((0, 255, 0))
-  else:
-    ring.fill((0, 0, 0))
+    print("Configuring {0} total pixels".format(totalPixels))
 
-  neopixel_strand.write()
+    self.neopixel_strand = neopixel.NeoPixel(machine.Pin(4), totalPixels)
 
-def main():
+    currentOffset = 0
 
-  while True:
-      if True:
-        print("waiting for message")
+    for segmentCount in segmentDescriptors:
+      print("Configuring ring from {} with {} pixels".format(currentOffset, segmentCount))
+      ring = RingState(ws2812ring.Ring(self.neopixel_strand, currentOffset, segmentCount))
+      currentOffset = currentOffset + segmentCount
+      self.rings.append(ring)
 
-        # Blocking wait for message
-        mqtt_client.wait_msg()  
-      else:
-        # Non-blocking wait for message
-        mqtt_client.check_msg()
-        # Then need to sleep to avoid 100% CPU usage (in a real
-        # app other useful actions would be performed instead)
-        time.sleep(1)
+    self.neopixel_strand.write()
 
-  mqtt_client.disconnect()
+    self.readingTimer = Timer(-1)
+
+    self.readingTimer.init(period=100, mode=Timer.PERIODIC, callback=self.timerCallback)
+
+  def stop(self):
+    self.readingTimer.deinit()
+
+  def initializing(self, initState):
+    ring = self.rings[initState % self.rings.length]
+
+    if initState < 3:
+      ring.set_animation("red-pulse")
+    else:
+      ring.set_animation("green-pulse")
+
+    self.neopixel_strand.write()
+
+  def timerCallback(self, timer):
+    for ring in self.rings:
+      ring.update()
+
+    self.neopixel_strand.write()
+
+  def setup(self, server, topic):
+    self.baseTopic = topic
+
+    self.mqtt_client = MQTTClient("status_light", server, user="status_light", password="9o6J5tiF10Mm")
+    self.mqtt_client.set_callback(self.topic_update)
+    print("Last will topic: " "{0}/connected".format(self.baseTopic))
+    self.mqtt_client.set_last_will(bytes("{0}/connected".format(self.baseTopic), 'utf-8'), b"0")
+    self.mqtt_client.connect()
+    self.mqtt_client.subscribe(bytes("{0}/0".format(self.baseTopic), 'utf-8'))
+    self.mqtt_client.subscribe(bytes("{0}/1".format(self.baseTopic), 'utf-8'))
+    self.mqtt_client.subscribe(bytes("{0}/2".format(self.baseTopic), 'utf-8'))
+    self.mqtt_client.publish(bytes("{0}/connected".format(self.baseTopic), 'utf-8'), b"1")
+
+
+  def topic_update(self, topic, msg):
+    print((topic, msg))
+    
+    topic = bytes.decode(topic)
+    msg = bytes.decode(msg)
+
+    ring_index = int(topic.split("/")[-1])
+
+    ring = self.rings[ring_index]
+
+    ring.set_animation(msg)
+
+    self.neopixel_strand.write()
+
+  def main(self):
+
+    while True:
+        if True:
+          print("waiting for message")
+
+          # Blocking wait for message
+          self.mqtt_client.wait_msg()  
+        else:
+          # Non-blocking wait for message
+          self.mqtt_client.check_msg()
+          # Then need to sleep to avoid 100% CPU usage (in a real
+          # app other useful actions would be performed instead)
+          time.sleep(1)
+
+    self.mqtt_client.disconnect()
 
 if __name__ == "__main__":
   setup("192.168.10.105")

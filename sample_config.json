@@ -1,0 +1,10 @@
+{
+  "networks": [
+    {
+      "ssid": "SSID",
+      "psk": "PSK"
+    }
+  ],
+  "mqttServerIp": "192.168.10.105",
+  "mqttTopic": "/status/indicator/0"
+}
