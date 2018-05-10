@@ -77,6 +77,6 @@ The following colors are supported by name:
 
 To help match the animation selection process above, uncompressed JSON file names are parsed to produce multiple files for different LED counts.  
 
-For example, an uncompressed file named which contains a `leds` member set to 8 will result in a compressed animation file of `8-foo.json.c`.  However, a file that contains both an `ledMin` of 8 and `ledMax` of 12 will create both an `8-foo.json.c` and a `12-foo.json.c`, since it claims to contain support for both 8 and 12 led rings.
+For example, an uncompressed file which contains a `leds` member set to 8 will result in a compressed animation file of `8-foo.json.c`.  However, a file that contains both an `ledMin` of 8 and `ledMax` of 12 will create both an `8-foo.json.c` and a `12-foo.json.c`, since it claims to contain support for both 8 and 12 led rings.
 
 The LED counts supported are defined in `convert_animation.py` and are currently 8, 12, 16 and 24 LED.  Anything within the `ledMin` - `ledMax` range will be generated, so a file with an `ledMin` of 8 and an `ledMax` of 24 will generate 4 files.
