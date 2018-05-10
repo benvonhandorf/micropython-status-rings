@@ -86,7 +86,7 @@ class StatusLight:
 
     for segmentCount in segmentDescriptors:
       print("Configuring ring from {} with {} pixels".format(currentOffset, segmentCount))
-      ring = RingState(ws2812ring.Ring(self.neopixel_strand, currentOffset, segmentCount))
+      ring = RingState(ws2812ring.WS2812Ring(self.neopixel_strand, currentOffset, segmentCount))
       currentOffset = currentOffset + segmentCount
       self.rings.append(ring)
 
@@ -100,7 +100,7 @@ class StatusLight:
     self.readingTimer.deinit()
 
   def initializing(self, initState):
-    ring = self.rings[initState % self.rings.length]
+    ring = self.rings[initState % len(self.rings)]
 
     if initState < 3:
       ring.set_animation("red-pulse")
