@@ -2,6 +2,7 @@ import json
 import sys
 import io
 import base64
+from copy import deepcopy
 
 def color_by_name(name):
   return {"black": [0,0,0],
@@ -13,10 +14,10 @@ def color_from_node(node, base_color = None):
   if node is None:
     return None
 
-  color = color_by_name(node["color"]) or base_color
+  color = color_by_name(node.get("color")) or deepcopy(base_color)
 
   if color is None:
-    return color
+    color = color_by_name("black")
 
   color[0] = color[0] + int(node.get("r", 0))
   color[1] = color[1] + int(node.get("g", 0))
@@ -33,7 +34,7 @@ def buildFileForLeds(led_count, uncompressed_json, base_filename):
       frame_data = bytearray()
 
       for node_count in range(0, led_count):
-        node_color = base_color
+        node_color = deepcopy(base_color)
 
         if node_count < len(uncompressed_cells):
           cell_node = uncompressed_cells[node_count]
@@ -43,6 +44,8 @@ def buildFileForLeds(led_count, uncompressed_json, base_filename):
         if node_color is None or len(node_color) != 3:
           print("Cannot determine color for frame {0} node {1}".format(frame, node_count))
           return
+
+        # print("F: {0}".format(base_color))
 
         frame_data.extend(node_color)
 
