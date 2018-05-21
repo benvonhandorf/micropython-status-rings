@@ -1,0 +1,25 @@
+{
+  "frames": [
+    {
+      "color": "red",
+      "r": 0,
+      "g": 0,
+      "b": 0,
+      "cells": [
+        {
+          "color": "green"
+        },
+        {
+          "color": "green"
+        },
+        {
+          "color": "green"
+        },
+        {
+          "color": "green"
+        }
+      ]
+    }
+  ],
+  "leds": 12
+}
