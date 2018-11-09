@@ -69,7 +69,7 @@ class RingState:
       print("Animation loaded from {0} with {1} frames".format(filename, len(self.animation)))
 
 class StatusLight:
-  def __init__(self, segmentDescriptors):
+  def __init__(self, segmentDescriptors, brightnessReduction):
 
     self.rings = []
 
@@ -86,7 +86,7 @@ class StatusLight:
 
     for segmentCount in segmentDescriptors:
       print("Configuring ring from {} with {} pixels".format(currentOffset, segmentCount))
-      ring = RingState(ws2812ring.WS2812Ring(self.neopixel_strand, currentOffset, segmentCount))
+      ring = RingState(ws2812ring.WS2812Ring(self.neopixel_strand, currentOffset, segmentCount, brightnessReduction))
       currentOffset = currentOffset + segmentCount
       self.rings.append(ring)
 
@@ -115,10 +115,10 @@ class StatusLight:
 
     self.neopixel_strand.write()
 
-  def setup(self, server, topic):
+  def setup(self, server, user, password, topic):
     self.baseTopic = topic
 
-    self.mqtt_client = MQTTClient("status_light", server, user="status_light", password="9o6J5tiF10Mm")
+    self.mqtt_client = MQTTClient("status_light", server, user=user, password=password)
     self.mqtt_client.set_callback(self.topic_update)
     print("Last will topic: " "{0}/connected".format(self.baseTopic))
     self.mqtt_client.set_last_will(bytes("{0}/connected".format(self.baseTopic), 'utf-8'), b"0")

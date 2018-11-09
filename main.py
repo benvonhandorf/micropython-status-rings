@@ -2,9 +2,13 @@ import configurator
 import status_light
 import machine
 import time
+import os
 
 configurator = configurator.Configurator()
-statusLight = status_light.StatusLight(configurator["segments"])
+
+brightnessReduction = configurator["brightnessReduction"] or 0
+
+statusLight = status_light.StatusLight(configurator["segments"], brightnessReduction)
 
 def main():
   statusLight.initializing(0)
@@ -22,8 +26,18 @@ def main():
   statusLight.initializing(3)
 
   if configurator.wlan.isconnected():
-    statusLight.setup(configurator["mqttServerIp"], configurator["mqttTopic"])
+    statusLight.setup(configurator["mqttServerIp"], configurator["mqttUser"], configurator["mqttPassword"], configurator["mqttTopic"])
     statusLight.main()
 
+def restore() :
+  os.rename("main_store.py", "main.py")
+  print("Restoring main.py")
+  machine.reset()
+
 if __name__ == "__main__":
-  main()  
+  skipBootPin = machine.Pin(14, machine.Pin.IN, machine.Pin.PULL_UP)
+  if(skipBootPin.value() == 0):
+    os.rename("main.py", "main_store.py")
+    print("Skipping initialization")
+  else:
+    main()  
