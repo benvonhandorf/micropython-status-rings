@@ -6,13 +6,20 @@ import urandom
 import math
 
 class PictureFrame:
-
-
   def pushrand(cycleCount, ringIndex, ring):
     h = (urandom.getrandbits(4) - 8) / 1024
     s = (urandom.getrandbits(8) - 127) / 1024
     v = (urandom.getrandbits(8) - 127) / 1024
     ring.pushOffsetHSV((h, s, v))
+
+  def unnamedMethod(cycleCount, ringIndex, ring):
+    baseHSV = ring.baseHSV
+
+    for counter in range(0, ring.count):
+      if (counter + ringIndex + cycleCount) % 2 == 0:
+        ring.pushOffsetHSV((0, 0, 0))
+      else:
+        ring.pushOffsetHSV((0.0, -baseHSV[1], 1.0 - baseHSV[2]))
 
   def baseAndWhite(cycleCount, ringIndex, ring):
     baseHSV = ring.baseHSV
@@ -58,32 +65,42 @@ class PictureFrame:
       ((0.11, 0.8, 0.5), slowFadeToWhite),
       ((0.11, 0.8, 0.5), fill),
       ((0.11, 0.8, 0.5), slowFadeToWhite)]),
-    ((2, 14), [((0.0, 0.75, 0.5), flashWhite), #Feb 14
+    ((1, 20), [((0.0, 0.75, 0.5), pushrand), #Jan 20 - Penelope
+      ((0.65, 1.0, 0.4), flashWhite),
+      ((0.33, 0.9, 0.3), pushrand),
+      ((0.16, 0.8, 0.4), pushrand),
+      ((0.55, 0.8, 0.4), slowFadeToWhite)]),
+    ((2, 14), [((0.0, 0.75, 0.5), flashWhite), #Feb 14 - Christy
       ((0.65, 1.0, 0.4), pushrand),
       ((0.33, 0.9, 0.3), pushrand),
       ((0.16, 0.8, 0.4), pushrand),
       ((0.55, 0.8, 0.4), slowFadeToWhite)]),
-    ((8, 12), [((0.0, 0.75, 0.5), pushrand), #August 12
+    ((7, 14), [((0.0, 0.75, 0.5), flashWhite), #July 14 - Oliver
+      ((0.65, 1.0, 0.4), pushrand),
+      ((0.33, 0.9, 0.3), pushrand),
+      ((0.16, 0.8, 0.4), pushrand),
+      ((0.55, 0.8, 0.4), slowFadeToWhite)]),
+    ((8, 12), [((0.0, 0.75, 0.5), pushrand), #August 12 - Joanna
       ((0.65, 1.0, 0.4), flashWhite),
       ((0.33, 0.9, 0.3), pushrand),
       ((0.16, 0.8, 0.4), pushrand),
       ((0.55, 0.8, 0.4), pushrand)]),
-    ((8, 17), [((0.0, 0.75, 0.5), pushrand), #August 17
+    ((8, 17), [((0.0, 0.75, 0.5), pushrand), #August 17 - Maria
       ((0.65, 1.0, 0.4), pushrand),
       ((0.33, 0.9, 0.3), flashWhite),
       ((0.16, 0.8, 0.4), pushrand),
       ((0.55, 0.8, 0.4), pushrand)]),
-    ((12, 14), [((0.0, 0.75, 0.5), pushrand), #Oct 13
+    ((12, 14), [((0.0, 0.75, 0.5), pushrand), #Oct 13 - Clair
       ((0.65, 1.0, 0.4), pushrand),
       ((0.33, 0.9, 0.3), pushrand),
       ((0.16, 0.8, 0.4), flashWhite),
       ((0.55, 0.8, 0.4), pushrand)]),
-    ((12, 14), [((0.0, 0.75, 0.5), pushrand), #Dec 14
+    ((12, 14), [((0.0, 0.75, 0.5), pushrand), #Dec 14 - Ben
       ((0.65, 1.0, 0.4), pushrand),
       ((0.33, 0.9, 0.3), pushrand),
       ((0.16, 0.8, 0.4), pushrand),
       ((0.55, 0.8, 0.4), flashWhite)]),
-    ((-1, -1), [((0.0, 0.75, 0.5), pushrand),
+    ((-1, -1), [((0.0, 0.75, 0.5), pushrand), #default
       ((0.65, 1.0, 0.4), baseAndWhite),
       ((0.33, 0.9, 0.3), pushrand),
       ((0.16, 0.8, 0.4), pushrand),

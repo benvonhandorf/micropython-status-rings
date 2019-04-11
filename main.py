@@ -26,6 +26,7 @@ def main():
   statusLight.initializing(3)
 
   if configurator.wlan.isconnected():
+    print("status light configuration {0} {1}".format(configurator["mqttServerIp"], configurator["mqttTopic"]))
     statusLight.setup(configurator["mqttServerIp"], configurator["mqttUser"], configurator["mqttPassword"], configurator["mqttTopic"])
     statusLight.main()
 

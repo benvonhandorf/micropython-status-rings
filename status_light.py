@@ -159,7 +159,3 @@ class StatusLight:
           time.sleep(1)
 
     self.mqtt_client.disconnect()
-
-if __name__ == "__main__":
-  setup("192.168.10.105")
-  main()  
